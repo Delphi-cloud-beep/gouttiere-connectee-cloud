@@ -1,3 +1,33 @@
+
+
+# ==========================================
+# PROJET CLOUD & TERRAFORM (CRITIQUE)
+# ==========================================
+# Dossier de plugins et providers
+.terraform/
+
+# Fichiers d'état (Contiennent tes secrets AWS et l'ID de tes ressources)
+*.tfstate
+*.tfstate.backup
+
+# Fichiers de variables sensibles (Où tu mets tes clés privées)
+*.tfvars
+*.tfvars.json
+
+# Fichiers de plan (Peuvent contenir des données sensibles en clair)
+*.tfplan
+
+# Dossiers Node.js (Si tu utilises Playwright ou npm)
+node_modules/
+dist/
+
+# ==========================================
+# LOGS ET SYSTÈME
+# ==========================================
+.DS_Store
+Thumbs.db
+.vscode/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

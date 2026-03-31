@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Dental Cloud Suite - Smart Monitoring</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { 
+            --primary: #1e3a8a; 
+            --accent: #3b82f6; 
+            --danger: #ef4444; 
+            --warning: #f97316; 
+            --dark: #0f172a; 
+            --bg: #f1f5f9; 
+            --success: #22c55e;
+            --cyan: #a5f3fc;
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #334155; }
+        .main-container { max-width: 1200px; margin: auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+        
+        /* Navigation */
+        .tabs { display: flex; gap: 10px; margin-bottom: 25px; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; }
+        .tab-btn { padding: 12px 25px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; background: #e2e8f0; color: #64748b; transition: 0.3s; }
+        .tab-btn.active { background: var(--primary); color: white; box-shadow: 0 4px 10px rgba(30, 58, 138, 0.2); }
+
+        .content-section { display: none; animation: fadeIn 0.4s ease; }
+        .content-section.active { display: block; }
+
+        /* Cabinet Style */
+        .jaw-box { display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 30px; background: #f8fafc; border-radius: 20px; border: 1px solid #e2e8f0; }
+        .arch { position: relative; width: 500px; height: 140px; }
+        .tooth { 
+            width: 36px; height: 48px; border: 2px solid #cbd5e1; border-radius: 8px; 
+            background: white; position: absolute; display: flex; flex-direction: column; 
+            justify-content: center; align-items: center; font-size: 10px; font-weight: bold; 
+            transition: 0.3s; 
+        }
+        .tooth.alert { background: var(--danger) !important; color: white !important; border-color: #b91c1c; animation: pulse 0.8s infinite; }
+        .tooth.ok { background: var(--accent) !important; color: white !important; border-color: #1d4ed8; }
+
+        /* Nuit Style - DARK MODE */
+        .night-card { background: var(--dark); color: white; padding: 30px; border-radius: 20px; margin-top: 15px; border: 1px solid #334155; }
+        
+        /* Panneau de statistiques intégré à la nuit */
+        .night-stats-panel { 
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; 
+            margin-bottom: 20px; padding: 20px; background: rgba(255,255,255,0.05); border-radius: 15px;
+        }
+        .stat-item { text-align: left; border-left: 3px solid #64748b; padding-left: 15px; }
+        .stat-item.active-blue { border-color: var(--accent); }
+        .stat-item.active-red { border-color: var(--danger); }
+        .stat-item.active-cyan { border-color: var(--cyan); }
+
+        .stat-label { font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+        .stat-value { font-size: 1.8em; font-weight: bold; color: white; }
+        .unit { font-size: 0.6em; color: #94a3b8; margin-left: 4px; }
+
+        .chart-wrap { height: 350px; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; }
+        
+        .info-note { 
+            margin-top: 20px; padding: 15px; background: rgba(59, 130, 246, 0.1); 
+            border-radius: 10px; font-size: 0.85em; color: #94a3b8; line-height: 1.4; border: 1px dashed #3b82f6;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+    </style>
+</head>
+<body>
+
+<div class="main-container">
+    <header style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+        <h1 style="color: var(--primary); margin:0;">OccluSense Cloud (Dispositif Patient) <span style="font-size: 0.5em; vertical-align: middle; background: #dbeafe; color: #1e40af; padding: 4px 8px; border-radius: 5px;">PRO</span></h1>
+        <div style="text-align: right; font-size: 10px; color: #94a3b8;">
+            Flux AWS Lambda Temps Réel
+        </div>
+    </header>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="openTab('cabinet')">🏥 ANALYSE CABINET</button>
+        <button class="tab-btn" onclick="openTab('nuit')">🌙 MONITORING BRUXISME</button>
+    </div>
+
+    <div id="cabinet" class="content-section active">
+        <div style="display:flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px;">
+            <h3 style="margin:0;">Diagnostic d'Occlusion Post-Soin</h3>
+            <div id="verdict-cab" style="font-weight:bold; padding: 8px 15px; border-radius: 20px; font-size: 0.9em;">Scan en cours...</div>
+        </div>
+        
+        <div class="jaw-box">
+            <div class="arch" id="upArch"></div>
+            <div style="height:1px; width:40%; background:#cbd5e1; margin: 5px 0;"></div>
+            <div class="arch" id="lowArch"></div>
+        </div>
+    </div>
+
+    <div id="nuit" class="content-section">
+        <h3 style="margin:0 0 15px 0;">Suivi Ambulatoire Nocturne (Smart-Splint)</h3>
+        
+        <div class="night-card">
+            
+            <div class="night-stats-panel">
+                <div class="stat-item active-blue">
+                    <div class="stat-label">Pression Actuelle</div>
+                    <div class="stat-value" id="metric-night-live">0 <span class="unit">N</span></div>
+                </div>
+                <div class="stat-item active-blue">
+                    <div class="stat-label">Durée de Serrage</div>
+                    <div class="stat-value" id="liveDuration">0.0 <span class="unit">s</span></div>
+                </div>
+                <div class="stat-item active-red">
+                    <div class="stat-label">Pic de Force (Peak)</div>
+                    <div class="stat-value" id="peakP">0 <span class="unit">N</span></div>
+                </div>
+                <div class="stat-item active-cyan">
+                    <div class="stat-label">Épisodes de Crise</div>
+                    <div class="stat-value" id="crisisCount">0</div>
+                </div>
+            </div>
+
+            <div style="display:flex; justify-content: space-between; margin-bottom: 15px;">
+                <div id="diag-night-status" style="font-weight: bold; color: var(--cyan);">Analyse du sommeil...</div>
+            </div>
+
+            <div class="chart-wrap">
+                <canvas id="sleepChart"></canvas>
+            </div>
+            
+            <div class="info-note">
+                <strong>💡 Note Clinique :</strong> Ce dispositif enregistre les signaux de pression et de mouvement musculaire (EMG match). Une pression de >50N maintenue plus de 3 secondes est enregistrée comme une "crise de bruxisme" majeure. L'objectif est de quantifier le nombre de crises par nuit pour évaluer la sévérité de la pathologie.
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const API_URL = "https://hprad63sw5ty7hld3zgovnvaby0tvqwc.lambda-url.eu-west-3.on.aws/";
+    let chart;
+    let peakForce = 0, crisisCount = 0, startTime = null;
+
+    const tUp = [18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28];
+    const tLow = [48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38];
+    const allTeeth = [...tUp, ...tLow];
+
+    function openTab(name) {
+        document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(name).classList.add('active');
+        event.currentTarget.classList.add('active');
+    }
+
+    function initJaw() {
+        const build = (id, list, isUp) => {
+            const el = document.getElementById(id);
+            list.forEach((t, i) => {
+                const angle = (Math.PI / (list.length - 1)) * i;
+                const x = 230 + 220 * Math.cos(angle + Math.PI);
+                const y = isUp ? 110 * Math.sin(angle) : 110 - (110 * Math.sin(angle));
+                el.innerHTML += `<div class="tooth" id="t-${t}" style="left:${x}px; top:${y}px">
+                    <span>${t}</span><span id="v-${t}" style="font-size:8px; opacity:0.7"></span>
+                </div>`;
+            });
+        };
+        build('upArch', tUp, true); build('lowArch', tLow, false);
+    }
+
+    function initChart() {
+        const ctx = document.getElementById('sleepChart').getContext('2d');
+        chart = new Chart(ctx, {
+            type: 'line',
+            data: { 
+                labels: [], 
+                datasets: [
+                    { label: 'Gauche (N)', data: [], borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.4, spanGaps: true },
+                    { label: 'Droite (N)', data: [], borderColor: '#f97316', backgroundColor: 'rgba(249, 115, 22, 0.1)', fill: true, tension: 0.4, spanGaps: true }
+                ] 
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false,
+                plugins: { legend: { labels: { color: '#94a3b8', font: { size: 10 } } } },
+                scales: { 
+                    y: { beginAtZero: true, max: 100, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } },
+                    x: { grid: { display: false }, ticks: { color: '#64748b' } }
+                }
+            }
+        });
+    }
+
+    async function update() {
+        try {
+            const res = await fetch(API_URL);
+            const data = await res.json();
+            if(!data.length) return;
+
+            let alerts = [];
+            data.forEach(d => {
+                const slot = document.getElementById(`t-${d.ToothIndex}`);
+                if(slot) {
+                    const p = d.PressureValue;
+                    document.getElementById(`v-${d.ToothIndex}`).innerText = p + "N";
+                    if(p > 60) { slot.className = "tooth alert"; alerts.push(d.ToothIndex); }
+                    else { slot.className = "tooth ok"; }
+                }
+            });
+
+            // Sync Cabinet
+            const verdict = document.getElementById('verdict-cab');
+            if(alerts.length > 0) {
+                verdict.style.color = "var(--danger)"; verdict.innerText = "⚠️ SURCHARGE DÉTECTÉE";
+            } else {
+                verdict.style.color = "var(--success)"; verdict.innerText = "✅ OCCLUSION SAINE";
+            }
+
+            // --- LOGIQUE DE TEMPS & PRESSION (MONITORING NUIT) ---
+            const last15 = data.slice(-15);
+            const lastEntry = last15[last15.length-1];
+            const pVal = parseFloat(lastEntry.PressureValue);
+            
+            // 1. Pression Actuelle
+            document.getElementById('metric-night-live').innerHTML = pVal + " <span class='unit'>N</span>";
+
+            // 2. Calcul du Pic de Force
+            if(pVal > peakForce) {
+                peakForce = pVal;
+                document.getElementById('peakP').innerHTML = peakForce + " <span class='unit'>N</span>";
+            }
+
+            // 3. Calcul de la Durée de Serrage (Chronos)
+            if(pVal > 15) { // Seuil de détection de serrage (15N)
+                if(!startTime) startTime = new Date(lastEntry.Timestamp);
+                let duration = (new Date(lastEntry.Timestamp) - startTime) / 1000;
+                document.getElementById('liveDuration').innerHTML = duration.toFixed(1) + " <span class='unit'>s</span>";
+                
+                // Si serrage long (> 3s) et fort, on compte une crise
+                if(duration > 3 && pVal > 50) {
+                    if(duration < 3.8) crisisCount++; // Incrémentation unique par crise
+                }
+            } else {
+                startTime = null; // Reset si pression retombe
+                document.getElementById('liveDuration').innerHTML = "0.0 <span class='unit'>s</span>";
+            }
+            document.getElementById('crisisCount').innerText = crisisCount;
+
+            // 4. Diagnostic textuel
+            document.getElementById('diag-night-status').innerText = (pVal > 50 && parseFloat(document.getElementById('liveDuration').innerText) > 2) ? "🔴 ÉPISODE DE BRUXISME ACTIF" : "🟢 REPOS MUSCULAIRE";
+
+            // 5. Mise à jour Graphique
+            chart.data.labels = last15.map(d => new Date(d.Timestamp).toLocaleTimeString());
+            chart.data.datasets[0].data = last15.map(d => (d.Zone || "").toUpperCase() === "DROITE" ? null : d.PressureValue);
+            chart.data.datasets[1].data = last15.map(d => (d.Zone || "").toUpperCase() === "DROITE" ? d.PressureValue : null);
+            chart.update();
+
+        } catch (e) { console.error(e); }
+    }
+
+    window.onload = () => { initJaw(); initChart(); update(); setInterval(update, 2500); };
+</script>
+</body>
+</html>
